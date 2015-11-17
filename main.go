@@ -13,9 +13,8 @@ func main() {
 
 	defer func() {
 		// 捕获panic异常
-		log.Print("发生了致命错误")
 		if err := recover(); err != nil {
-			log.Print("致命错误:", err)
+			log.Print("发生了致命错误:", err)
 		}
 	}()
 
@@ -35,5 +34,6 @@ func main() {
 		return
 	}
 
-	log.Print("peroids: %d", len(peroids))
+	log.Printf("peroids: %d", len(peroids))
+	log.Print(peroids[0].Volume)
 }
