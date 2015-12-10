@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strconv"
+	"strings"
+	"time"
 
+	"github.com/nzai/go-utility/net"
 	"github.com/nzai/regimentation/config"
-	"github.com/nzai/stockrecorder/io"
 	m "github.com/nzai/stockrecorder/market"
 	"github.com/nzai/stockrecorder/server/result"
 )
@@ -19,13 +22,10 @@ func QueryPeroids(market, code, start, end string) ([]m.Peroid60, error) {
 	//	url := "http://52.69.228.175:602/america/aapl/20151101/20151111/1m"
 	url := "http://localhost:602/america/aapl/20151101/20151111/1m"
 	log.Print("url:", url)
-
-	content, err := io.DownloadString(url)
+	content, err := net.DownloadString(url)
 	if err != nil {
 		return nil, err
 	}
-
-	//log.Print("content:", content)
 
 	r := result.HttpResult{}
 	err = json.Unmarshal([]byte(content), &r)
@@ -42,32 +42,31 @@ func QueryPeroids(market, code, start, end string) ([]m.Peroid60, error) {
 		return nil, fmt.Errorf("转换Data出错:%v", r.Data)
 	}
 
-	var timeString string
-	var open, _close, high, low float32
-	var volume int64
+	upperMarket := strings.Title(market)
+	upperCode := strings.ToUpper(code)
 
 	peroids := make([]m.Peroid60, 0)
 	for _, obj := range objs {
-
-		str, ok := obj.(string)
+		//log.Print(reflect.TypeOf(obj).String())
+		values, ok := obj.([]interface{})
 		if !ok {
-			return nil, fmt.Errorf("转换Data出错:%v", obj)
+			return nil, fmt.Errorf("转换Data item出错:%v", obj)
 		}
 
-		_, err := fmt.Sscanf(str, "%s %f %f %f %f %d", &timeString, &open, &_close, &high, &low, &volume)
+		_time, err := time.Parse("0601021504", strconv.FormatInt(int64(values[0].(float64)), 10))
 		if err != nil {
-			return nil, fmt.Errorf("转换Peroid60出错:%s", err.Error())
+			return nil, err
 		}
 
 		peroids = append(peroids, m.Peroid60{
-			Market: market,
-			Code:   code,
-			Time:   timeString,
-			Open:   open,
-			Close:  _close,
-			High:   high,
-			Low:    low,
-			Volume: volume})
+			Market: upperMarket,
+			Code:   upperCode,
+			Time:   _time,
+			Open:   float32(values[1].(float64)) / 1000,
+			Close:  float32(values[2].(float64)) / 1000,
+			High:   float32(values[3].(float64)) / 1000,
+			Low:    float32(values[4].(float64)) / 1000,
+			Volume: int64(values[5].(float64))})
 	}
 
 	return peroids, nil

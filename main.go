@@ -35,5 +35,5 @@ func main() {
 	}
 
 	log.Printf("peroids: %d", len(peroids))
-	log.Print(peroids[0].Volume)
+	log.Print(peroids[0])
 }

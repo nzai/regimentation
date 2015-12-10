@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/nzai/stockrecorder/io"
+	"github.com/nzai/go-utility/io"
 )
 
 const (
