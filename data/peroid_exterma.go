@@ -75,6 +75,7 @@ func (t *PeroidExtermaIndexes) calculate(histories []DayHistory, peroid int) (ma
 	return dict, nil
 }
 
+//	查询
 func (t *PeroidExtermaIndexes) Get(peroid int, date time.Time) (*PeroidExtermaIndex, error) {
 
 	indexes, found := t.indexes[peroid]
