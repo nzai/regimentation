@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -53,8 +52,8 @@ func QueryMinuteHistories(market, code string, start, end time.Time) ([]MinuteHi
 		end.Format("20060102"))
 	//	url := "http://52.69.228.175:602/america/aapl/20151101/20151111/1m"
 	//	url := "http://localhost:602/america/aapl/20151101/20151111/1m"
-	log.Print("url:", url)
-	content, err := net.DownloadString(url)
+	//	log.Print("url:", url)
+	content, err := net.DownloadStringRetry(url, 3, 10)
 	if err != nil {
 		return nil, err
 	}
@@ -77,6 +76,7 @@ func QueryMinuteHistories(market, code string, start, end time.Time) ([]MinuteHi
 	upperMarket := strings.Title(market)
 	upperCode := strings.ToUpper(code)
 
+	var currentTradingDate time.Time
 	histories := make([]MinuteHistory, 0)
 	for _, obj := range objs {
 		//log.Print(reflect.TypeOf(obj).String())
@@ -88,6 +88,11 @@ func QueryMinuteHistories(market, code string, start, end time.Time) ([]MinuteHi
 		_time, err := time.Parse("0601021504", strconv.FormatInt(int64(values[0].(float64)), 10))
 		if err != nil {
 			return nil, err
+		}
+
+		date := utime.BeginOfDay(_time)
+		if !date.Equal(currentTradingDate) {
+			currentTradingDate = date
 		}
 
 		histories = append(histories, MinuteHistory{
@@ -105,69 +110,13 @@ func QueryMinuteHistories(market, code string, start, end time.Time) ([]MinuteHi
 }
 
 //	每日历史
-type DayHistory struct {
+type PeroidHistory struct {
 	Market string
 	Code   string
-	Date   time.Time
+	Time   time.Time
 	Open   float32
 	Close  float32
 	High   float32
 	Low    float32
 	Volume int64
-}
-
-func ParseDayHistory(minutes []MinuteHistory) ([]DayHistory, error) {
-	if len(minutes) == 0 {
-		return nil, fmt.Errorf("minutes为空")
-	}
-
-	//	分钟数据排序
-	minuteHistories := MinuteHistories(minutes)
-	sort.Sort(minuteHistories)
-	minutes = []MinuteHistory(minuteHistories)
-
-	var current DayHistory
-	var tomorrow time.Time
-
-	list := make([]DayHistory, 0)
-	for index, minute := range minutes {
-
-		if index == 0 || !minute.Time.Before(tomorrow) {
-			if index > 0 {
-				//	记录
-				list = append(list, current)
-			}
-
-			current = DayHistory{
-				Market: minute.Market,
-				Code:   minute.Code,
-				Date:   utime.BeginOfDay(minute.Time),
-				Open:   minute.Open,
-				High:   minute.High,
-				Low:    minute.Low,
-				Volume: minute.Volume}
-
-			tomorrow = current.Date.Add(time.Hour * 24)
-
-			continue
-		}
-
-		if minute.High > current.High {
-			current.High = minute.High
-		}
-
-		if minute.Low < current.Low {
-			current.Low = minute.Low
-		}
-
-		current.Close = minute.Close
-		current.Volume += minute.Volume
-	}
-
-	//	记录最后一天的数据
-	if list[len(list)-1].Date.Before(current.Date) {
-		list = append(list, current)
-	}
-
-	return list, nil
 }
