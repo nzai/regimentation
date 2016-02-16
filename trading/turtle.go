@@ -11,6 +11,7 @@ import (
 )
 
 const (
+	Step                = 20
 	SimulateGCCount     = 32
 	ProgressDelaySecond = 5
 )
@@ -87,7 +88,7 @@ func (t *TurtleSystem) Init() error {
 	}
 
 	peroids := make([]int, 0)
-	for peroid := minPeroid; peroid <= maxPeroid; peroid++ {
+	for peroid := minPeroid; peroid <= maxPeroid; peroid += Step {
 		peroids = append(peroids, peroid)
 	}
 	//	log.Printf("peroids:%v", peroids)
@@ -96,17 +97,17 @@ func (t *TurtleSystem) Init() error {
 
 	//	海龟指标
 	ns := make([]int, 0)
-	for n := t.MinSetting.N; n <= t.MaxSetting.N; n++ {
+	for n := t.MinSetting.N; n <= t.MaxSetting.N; n += Step {
 		ns = append(ns, n)
 	}
 	//	log.Printf("ns:%v", ns)
 	t.TurtleIndexes = &data.TurtleIndexes{}
 	t.TurtleIndexes.Init(t.MinutePeroids, ns...)
 	t.TotalAmount = (t.MaxSetting.Holding - t.MinSetting.Holding + 1) *
-		(t.MaxSetting.N - t.MinSetting.N + 1) *
-		(t.MaxSetting.Enter - t.MinSetting.Enter + 1) *
-		(t.MaxSetting.Exit - t.MinSetting.Exit + 1) *
-		(t.MaxSetting.Stop - t.MinSetting.Stop + 1)
+		((t.MaxSetting.N-t.MinSetting.N)/Step + 1) *
+		((t.MaxSetting.Enter-t.MinSetting.Enter)/Step + 1) *
+		((t.MaxSetting.Exit-t.MinSetting.Exit)/Step + 1) *
+		((t.MaxSetting.Stop-t.MinSetting.Stop)/Step + 1)
 	t.Caculated = 0
 
 	//	初始化演算结果通道
@@ -139,10 +140,10 @@ func (t *TurtleSystem) Simulate() {
 	var wg sync.WaitGroup
 	wg.Add(t.TotalAmount)
 
-	for stop := t.MinSetting.Stop; stop <= t.MaxSetting.Stop; stop++ {
-		for exit := t.MinSetting.Exit; exit <= t.MaxSetting.Exit; exit++ {
-			for enter := t.MinSetting.Enter; enter <= t.MaxSetting.Enter; enter++ {
-				for n := t.MinSetting.N; n <= t.MaxSetting.N; n++ {
+	for stop := t.MinSetting.Stop; stop <= t.MaxSetting.Stop; stop += Step {
+		for exit := t.MinSetting.Exit; exit <= t.MaxSetting.Exit; exit += Step {
+			for enter := t.MinSetting.Enter; enter <= t.MaxSetting.Enter; enter += Step {
+				for n := t.MinSetting.N; n <= t.MaxSetting.N; n += Step {
 					for holding := t.MinSetting.Holding; holding <= t.MaxSetting.Holding; holding++ {
 
 						//	并发演算
@@ -215,7 +216,7 @@ func (t *TurtleSystem) simulateProgress() {
 
 	for _ = range ticker.C {
 		if t.CurrentSetting != nil {
-			log.Printf("[Current]\tHolding:%d N:%d Enter:%d Exit:%d Stop:%d Profit:%f ProfitPercent:%.3f\t%d %d %03.2f%%",
+			log.Printf("[Current]\tHolding:%d N:%d Enter:%d Exit:%d Stop:%d Profit:%.3f ProfitPercent:%.3f\t\t%d %d %03.2f%%",
 				t.CurrentSetting.Holding,
 				t.CurrentSetting.N,
 				t.CurrentSetting.Enter,
@@ -229,7 +230,7 @@ func (t *TurtleSystem) simulateProgress() {
 		}
 
 		if t.BestSetting != nil {
-			log.Printf("[Best]\tHolding:%d N:%d Enter:%d Exit:%d Stop:%d Profit:%f ProfitPercent:%.3f",
+			log.Printf("[Best]\tHolding:%d N:%d Enter:%d Exit:%d Stop:%d Profit:%.3f ProfitPercent:%.3f",
 				t.BestSetting.Holding,
 				t.BestSetting.N,
 				t.BestSetting.Enter,
@@ -258,7 +259,7 @@ func (t *TurtleSystem) SimulateResultProcess() {
 			t.BestProfit = t.CurrentProfit
 			t.BestProfitPercent = t.CurrentProfitPercent
 
-			log.Printf("[Best]\tHolding:%d N:%d Enter:%d Exit:%d Stop:%d Profit:%f ProfitPercent:%.3f",
+			log.Printf("[Best]\tHolding:%d N:%d Enter:%d Exit:%d Stop:%d Profit:%.3f ProfitPercent:%.3f",
 				t.BestSetting.Holding,
 				t.BestSetting.N,
 				t.BestSetting.Enter,

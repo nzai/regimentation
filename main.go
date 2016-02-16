@@ -24,7 +24,7 @@ func main() {
 		log.Fatal("读取配置文件错误: ", err)
 	}
 
-	start, err := time.Parse("20060102", "20151001")
+	start, err := time.Parse("20060102", "20150801")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -40,8 +40,8 @@ func main() {
 		StartTime:   start,
 		StartAmount: 100000,
 		EndTime:     end,
-		MinSetting:  trading.TurtleSetting{Holding: 1, N: 2, Enter: 2, Exit: 2, Stop: 2},
-		MaxSetting:  trading.TurtleSetting{Holding: 5, N: 20, Enter: 20, Exit: 20, Stop: 20}}
+		MinSetting:  trading.TurtleSetting{Holding: 1, N: 20, Enter: 20, Exit: 20, Stop: 20},
+		MaxSetting:  trading.TurtleSetting{Holding: 8, N: 600, Enter: 600, Exit: 600, Stop: 600}}
 
 	//	初始化
 	err = system.Init()
