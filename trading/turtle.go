@@ -11,7 +11,6 @@ import (
 )
 
 const (
-	Step                = 20
 	SimulateGCCount     = 32
 	ProgressDelaySecond = 5
 )
@@ -43,6 +42,7 @@ type TurtleSystem struct {
 
 	MinSetting TurtleSetting //	最小设定
 	MaxSetting TurtleSetting //	最大设定
+	Step       int           //	步进,影响计算速度
 
 	CurrentSetting       *TurtleSetting //	当前设定
 	CurrentProfit        float32        //	当前利润
@@ -88,7 +88,7 @@ func (t *TurtleSystem) Init() error {
 	}
 
 	peroids := make([]int, 0)
-	for peroid := minPeroid; peroid <= maxPeroid; peroid += Step {
+	for peroid := minPeroid; peroid <= maxPeroid; peroid += t.Step {
 		peroids = append(peroids, peroid)
 	}
 	//	log.Printf("peroids:%v", peroids)
@@ -97,17 +97,17 @@ func (t *TurtleSystem) Init() error {
 
 	//	海龟指标
 	ns := make([]int, 0)
-	for n := t.MinSetting.N; n <= t.MaxSetting.N; n += Step {
+	for n := t.MinSetting.N; n <= t.MaxSetting.N; n += t.Step {
 		ns = append(ns, n)
 	}
 	//	log.Printf("ns:%v", ns)
 	t.TurtleIndexes = &data.TurtleIndexes{}
 	t.TurtleIndexes.Init(t.MinutePeroids, ns...)
 	t.TotalAmount = (t.MaxSetting.Holding - t.MinSetting.Holding + 1) *
-		((t.MaxSetting.N-t.MinSetting.N)/Step + 1) *
-		((t.MaxSetting.Enter-t.MinSetting.Enter)/Step + 1) *
-		((t.MaxSetting.Exit-t.MinSetting.Exit)/Step + 1) *
-		((t.MaxSetting.Stop-t.MinSetting.Stop)/Step + 1)
+		((t.MaxSetting.N-t.MinSetting.N)/t.Step + 1) *
+		((t.MaxSetting.Enter-t.MinSetting.Enter)/t.Step + 1) *
+		((t.MaxSetting.Exit-t.MinSetting.Exit)/t.Step + 1) *
+		((t.MaxSetting.Stop-t.MinSetting.Stop)/t.Step + 1)
 	t.Caculated = 0
 
 	//	初始化演算结果通道
@@ -140,10 +140,10 @@ func (t *TurtleSystem) Simulate() {
 	var wg sync.WaitGroup
 	wg.Add(t.TotalAmount)
 
-	for stop := t.MinSetting.Stop; stop <= t.MaxSetting.Stop; stop += Step {
-		for exit := t.MinSetting.Exit; exit <= t.MaxSetting.Exit; exit += Step {
-			for enter := t.MinSetting.Enter; enter <= t.MaxSetting.Enter; enter += Step {
-				for n := t.MinSetting.N; n <= t.MaxSetting.N; n += Step {
+	for stop := t.MinSetting.Stop; stop <= t.MaxSetting.Stop; stop += t.Step {
+		for exit := t.MinSetting.Exit; exit <= t.MaxSetting.Exit; exit += t.Step {
+			for enter := t.MinSetting.Enter; enter <= t.MaxSetting.Enter; enter += t.Step {
+				for n := t.MinSetting.N; n <= t.MaxSetting.N; n += t.Step {
 					for holding := t.MinSetting.Holding; holding <= t.MaxSetting.Holding; holding++ {
 
 						//	并发演算
