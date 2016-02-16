@@ -151,8 +151,7 @@ func (t *TurtleSystemTest) DoEnter(peroid data.MinuteHistory, direction bool, re
 		Direction:  trend.Direction,
 		Quantity:   quantity})
 
-	t.Trends = append(t.Trends, trend)
-	t.CurrentTrend = &t.Trends[len(t.Trends)-1]
+	t.CurrentTrend = &trend
 }
 
 //	增持
@@ -199,6 +198,8 @@ func (t *TurtleSystemTest) DoExit(peroid data.MinuteHistory, reason string) {
 	t.EndAmount += profit
 	t.Profit = t.EndAmount - t.StartAmount
 	t.ProfitPercent = t.Profit / t.StartAmount
+
+	t.Trends = append(t.Trends, *t.CurrentTrend)
 
 	//	趋势结束
 	t.CurrentTrend = nil
@@ -258,12 +259,8 @@ func (t *TurtleSystemTest) Simulate() error {
 	}
 
 	if t.CurrentTrend != nil {
-		t.DoExit(t.TurtleSystem.MinutePeroids[len(t.TurtleSystem.MinutePeroids)-1], "模拟结束")
+		t.DoExit(t.TurtleSystem.MinutePeroids[len(t.TurtleSystem.MinutePeroids)-1], "演算结束")
 	}
-
-	t.TurtleSystem.CurrentProfit = t.Profit
-	t.TurtleSystem.CurrentProfitPercent = t.ProfitPercent
-	t.TurtleSystem.Caculated++
 
 	return nil
 }
