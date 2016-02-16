@@ -3,10 +3,10 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/nzai/go-utility/io"
+	"github.com/nzai/go-utility/path"
 )
 
 const (
@@ -21,13 +21,17 @@ type Config struct {
 var configValue *Config = nil
 
 //	设置配置文件
-func SetRootDir(root string) error {
+func ReadConfig() error {
+
+	root, err := path.GetStartupDir()
+	if err != nil {
+		return fmt.Errorf("获取起始目录失败:%s", err.Error())
+	}
 
 	//	构造配置文件路径
 	filePath := filepath.Join(root, configFile)
-	_, err := os.Stat(filePath)
-	if os.IsNotExist(err) {
-		return err
+	if !io.IsExists(filePath) {
+		return fmt.Errorf("配置文件%s不存在", filePath)
 	}
 
 	//	读取文件
