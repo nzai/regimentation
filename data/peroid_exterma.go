@@ -53,7 +53,7 @@ func (t *PeroidExtermaIndexes) calculate(histories []MinuteHistory, peroid int) 
 		min := histories[start].Low
 		max := histories[start].High
 
-		for hi := start + 1; hi < index; index++ {
+		for hi := start + 1; hi < index; hi++ {
 			if histories[hi].High > max {
 				max = histories[hi].High
 			}
