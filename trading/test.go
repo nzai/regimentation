@@ -20,7 +20,7 @@ type TurtleSystemTest struct {
 }
 
 //	是否入市
-func (t *TurtleSystemTest) Enter(peroid data.MinuteHistory) (bool, bool, string, error) {
+func (t *TurtleSystemTest) Enter(peroid data.PeroidHistory) (bool, bool, string, error) {
 	//	当前在趋势中就不重复进入了
 	if t.CurrentTrend != nil {
 		return false, false, "", nil
@@ -33,19 +33,19 @@ func (t *TurtleSystemTest) Enter(peroid data.MinuteHistory) (bool, bool, string,
 	}
 
 	//	是否超过极值
-	if peroid.High > peroid_exterma_last_trading_day.Max {
-		return true, true, fmt.Sprintf("分时价格%.2f突破%d日最大值%.2f", peroid.High, peroid_exterma_last_trading_day.Peroid, peroid_exterma_last_trading_day.Max), nil
+	if peroid.High > peroid_exterma_last_trading_day.High {
+		return true, true, fmt.Sprintf("分时价格%.2f突破%d日最大值%.2f", peroid.High, t.TurtleSetting.Enter, peroid_exterma_last_trading_day.High), nil
 	}
 
-	if peroid.Low < peroid_exterma_last_trading_day.Min {
-		return true, false, fmt.Sprintf("分时价格%.2f突破%d日最小值%.2f", peroid.Low, peroid_exterma_last_trading_day.Peroid, peroid_exterma_last_trading_day.Min), nil
+	if peroid.Low < peroid_exterma_last_trading_day.Low {
+		return true, false, fmt.Sprintf("分时价格%.2f突破%d日最小值%.2f", peroid.Low, t.TurtleSetting.Enter, peroid_exterma_last_trading_day.Low), nil
 	}
 
 	return false, false, "", nil
 }
 
 //	是否增持
-func (t *TurtleSystemTest) Increase(peroid data.MinuteHistory) (bool, string, error) {
+func (t *TurtleSystemTest) Increase(peroid data.PeroidHistory) (bool, string, error) {
 	//	没有趋势就没有增持
 	if t.CurrentTrend == nil {
 		return false, "", nil
@@ -77,7 +77,7 @@ func (t *TurtleSystemTest) Increase(peroid data.MinuteHistory) (bool, string, er
 }
 
 //	是否止盈
-func (t *TurtleSystemTest) Exit(peroid data.MinuteHistory) (bool, string, error) {
+func (t *TurtleSystemTest) Exit(peroid data.PeroidHistory) (bool, string, error) {
 	//	没有趋势就没有止盈
 	if t.CurrentTrend == nil {
 		return false, "", nil
@@ -89,19 +89,19 @@ func (t *TurtleSystemTest) Exit(peroid data.MinuteHistory) (bool, string, error)
 		return false, "", fmt.Errorf("[TutleSystem]\t%s", err.Error())
 	}
 
-	if t.CurrentTrend.Direction && peroid.Low < peroid_exterma_last_trading_day.Min {
-		return true, fmt.Sprintf("趋势结束 分时价格%.2f突破%d日最小值%.2f", peroid.Low, t.TurtleSetting.Exit, peroid_exterma_last_trading_day.Min), nil
+	if t.CurrentTrend.Direction && peroid.Low < peroid_exterma_last_trading_day.Low {
+		return true, fmt.Sprintf("趋势结束 分时价格%.2f突破%d日最小值%.2f", peroid.Low, t.TurtleSetting.Exit, peroid_exterma_last_trading_day.Low), nil
 	}
 
-	if !t.CurrentTrend.Direction && peroid.High > peroid_exterma_last_trading_day.Max {
-		return true, fmt.Sprintf("趋势结束 分时价格%.2f突破%d日最大值%.2f", peroid.High, t.TurtleSetting.Exit, peroid_exterma_last_trading_day.Max), nil
+	if !t.CurrentTrend.Direction && peroid.High > peroid_exterma_last_trading_day.High {
+		return true, fmt.Sprintf("趋势结束 分时价格%.2f突破%d日最大值%.2f", peroid.High, t.TurtleSetting.Exit, peroid_exterma_last_trading_day.High), nil
 	}
 
 	return false, "", nil
 }
 
 //	是否止损
-func (t *TurtleSystemTest) Stop(peroid data.MinuteHistory) (bool, string, error) {
+func (t *TurtleSystemTest) Stop(peroid data.PeroidHistory) (bool, string, error) {
 	//	没有趋势就没有止损
 	if t.CurrentTrend == nil {
 		return false, "", nil
@@ -127,7 +127,7 @@ func (t *TurtleSystemTest) Stop(peroid data.MinuteHistory) (bool, string, error)
 }
 
 //	入市
-func (t *TurtleSystemTest) DoEnter(peroid data.MinuteHistory, direction bool, reason string) {
+func (t *TurtleSystemTest) DoEnter(peroid data.PeroidHistory, direction bool, reason string) {
 
 	startPrice := peroid.High
 	if !direction {
@@ -155,7 +155,7 @@ func (t *TurtleSystemTest) DoEnter(peroid data.MinuteHistory, direction bool, re
 }
 
 //	增持
-func (t *TurtleSystemTest) DoIncrease(peroid data.MinuteHistory, reason string) {
+func (t *TurtleSystemTest) DoIncrease(peroid data.PeroidHistory, reason string) {
 
 	startPrice := peroid.High
 	if !t.CurrentTrend.Direction {
@@ -172,7 +172,7 @@ func (t *TurtleSystemTest) DoIncrease(peroid data.MinuteHistory, reason string) 
 }
 
 //	止盈
-func (t *TurtleSystemTest) DoExit(peroid data.MinuteHistory, reason string) {
+func (t *TurtleSystemTest) DoExit(peroid data.PeroidHistory, reason string) {
 
 	endPrice := peroid.Low
 	if !t.CurrentTrend.Direction {
@@ -208,7 +208,7 @@ func (t *TurtleSystemTest) DoExit(peroid data.MinuteHistory, reason string) {
 //	演算
 func (t *TurtleSystemTest) Simulate() error {
 
-	for _, peroid := range t.TurtleSystem.MinutePeroids {
+	for _, peroid := range t.TurtleSystem.PeroidHistories {
 		//	是否入市
 		enter, direction, reason, err := t.Enter(peroid)
 		if err != nil {
@@ -259,7 +259,7 @@ func (t *TurtleSystemTest) Simulate() error {
 	}
 
 	if t.CurrentTrend != nil {
-		t.DoExit(t.TurtleSystem.MinutePeroids[len(t.TurtleSystem.MinutePeroids)-1], "演算结束")
+		t.DoExit(t.TurtleSystem.PeroidHistories[len(t.TurtleSystem.PeroidHistories)-1], "演算结束")
 	}
 
 	return nil
