@@ -33,16 +33,15 @@ type TurtleSimulateResult struct {
 
 //	海龟系统
 type TurtleSystem struct {
-	Market      string    //	市场
-	Code        string    //	上市公司
-	StartTime   time.Time //	起始时间
-	StartAmount float32   //	起始资金
-	EndTime     time.Time //	结束时间
-	EndAmount   float32   //	结束资金
-
-	MinSetting TurtleSetting //	最小设定
-	MaxSetting TurtleSetting //	最大设定
-	Step       int           //	步进,影响计算速度
+	Market      string        //	市场
+	Code        string        //	上市公司
+	StartTime   time.Time     //	起始时间
+	StartAmount float32       //	起始资金
+	EndTime     time.Time     //	结束时间
+	EndAmount   float32       //	结束资金
+	Peroid      int           //	区间
+	MinSetting  TurtleSetting //	最小设定
+	MaxSetting  TurtleSetting //	最大设定
 
 	CurrentSetting       *TurtleSetting //	当前设定
 	CurrentProfit        float32        //	当前利润
@@ -55,7 +54,7 @@ type TurtleSystem struct {
 	BestProfit        float32        //	最佳利润
 	BestProfitPercent float32        //	最佳利润率
 
-	MinutePeroids []data.MinuteHistory //	分时数据
+	PeroidHistories []data.PeroidHistory // 区间历史
 
 	PeroidExtermaIndexes *data.PeroidExtermaIndexes //	区间极值
 	TurtleIndexes        *data.TurtleIndexes        //	海龟指标
@@ -74,7 +73,13 @@ func (t *TurtleSystem) Init() error {
 		return err
 	}
 
-	t.MinutePeroids = mhs
+	//	转化为区间历史
+	phs, err := data.ParsePeroidHistory(mhs, t.Peroid)
+	if err != nil {
+		return err
+	}
+
+	t.PeroidHistories = phs
 
 	//	区间极值
 	minPeroid := t.MinSetting.Enter
@@ -88,26 +93,28 @@ func (t *TurtleSystem) Init() error {
 	}
 
 	peroids := make([]int, 0)
-	for peroid := minPeroid; peroid <= maxPeroid; peroid += t.Step {
+	for peroid := minPeroid; peroid <= maxPeroid; peroid++ {
 		peroids = append(peroids, peroid)
 	}
 	//	log.Printf("peroids:%v", peroids)
 	t.PeroidExtermaIndexes = &data.PeroidExtermaIndexes{}
-	t.PeroidExtermaIndexes.Init(t.MinutePeroids, peroids...)
+	t.PeroidExtermaIndexes.Init(t.PeroidHistories, peroids...)
 
 	//	海龟指标
 	ns := make([]int, 0)
-	for n := t.MinSetting.N; n <= t.MaxSetting.N; n += t.Step {
+	for n := t.MinSetting.N; n <= t.MaxSetting.N; n++ {
 		ns = append(ns, n)
 	}
 	//	log.Printf("ns:%v", ns)
 	t.TurtleIndexes = &data.TurtleIndexes{}
-	t.TurtleIndexes.Init(t.MinutePeroids, ns...)
+	t.TurtleIndexes.Init(t.PeroidHistories, ns...)
+
 	t.TotalAmount = (t.MaxSetting.Holding - t.MinSetting.Holding + 1) *
-		((t.MaxSetting.N-t.MinSetting.N)/t.Step + 1) *
-		((t.MaxSetting.Enter-t.MinSetting.Enter)/t.Step + 1) *
-		((t.MaxSetting.Exit-t.MinSetting.Exit)/t.Step + 1) *
-		((t.MaxSetting.Stop-t.MinSetting.Stop)/t.Step + 1)
+		(t.MaxSetting.N - t.MinSetting.N + 1) *
+		(t.MaxSetting.Enter - t.MinSetting.Enter + 1) *
+		(t.MaxSetting.Exit - t.MinSetting.Exit + 1) *
+		(t.MaxSetting.Stop - t.MinSetting.Stop + 1)
+
 	t.Caculated = 0
 
 	//	初始化演算结果通道
@@ -140,17 +147,17 @@ func (t *TurtleSystem) Simulate() {
 	var wg sync.WaitGroup
 	wg.Add(t.TotalAmount)
 
-	for stop := t.MinSetting.Stop; stop <= t.MaxSetting.Stop; stop += t.Step {
-		for exit := t.MinSetting.Exit; exit <= t.MaxSetting.Exit; exit += t.Step {
-			for enter := t.MinSetting.Enter; enter <= t.MaxSetting.Enter; enter += t.Step {
-				for n := t.MinSetting.N; n <= t.MaxSetting.N; n += t.Step {
+	for stop := t.MinSetting.Stop; stop <= t.MaxSetting.Stop; stop++ {
+		for exit := t.MinSetting.Exit; exit <= t.MaxSetting.Exit; exit++ {
+			for enter := t.MinSetting.Enter; enter <= t.MaxSetting.Enter; enter++ {
+				for n := t.MinSetting.N; n <= t.MaxSetting.N; n++ {
 					for holding := t.MinSetting.Holding; holding <= t.MaxSetting.Holding; holding++ {
 
 						//	并发演算
 						go func(setting TurtleSetting) {
-							_err := t.SimulateOnce(setting)
-							if _err != nil {
-								log.Print(_err.Error())
+							err := t.SimulateOnce(setting)
+							if err != nil {
+								log.Print(err.Error())
 							}
 
 							<-chanSend
@@ -167,7 +174,7 @@ func (t *TurtleSystem) Simulate() {
 	//	阻塞，直到演算完所有组合
 	wg.Wait()
 
-	log.Printf("[Simulate]\t演算结束,最佳设定Holding:%d N:%d Enter:%d Exit:%d Stop:%d Profit:%f ProfitPercent:%.3f",
+	log.Printf("[Simulate]\t演算结束,最佳设定Holding:%d N:%d Enter:%d Exit:%d Stop:%d Profit:%f ProfitPercent:%.3f%%",
 		t.BestSetting.Holding,
 		t.BestSetting.N,
 		t.BestSetting.Enter,
@@ -213,10 +220,17 @@ func (t *TurtleSystem) SimulateOnce(setting TurtleSetting) error {
 func (t *TurtleSystem) simulateProgress() {
 	//	定时任务
 	ticker := time.NewTicker(time.Second * ProgressDelaySecond)
+	start := time.Now()
 
 	for _ = range ticker.C {
 		if t.CurrentSetting != nil {
-			log.Printf("[Current]\tHolding:%d N:%d Enter:%d Exit:%d Stop:%d Profit:%.3f ProfitPercent:%.3f\t\t%d %d %03.2f%%",
+			dur := time.Now().Sub(start)
+			speed := float64(t.Caculated) / dur.Seconds()
+			remainSeconds := float64(t.TotalAmount-t.Caculated) / speed
+
+			remain := time.Second * time.Duration(remainSeconds)
+
+			log.Printf("[Current]\tHolding:%d N:%d Enter:%d Exit:%d Stop:%d Profit:%.3f ProfitPercent:%.3f%%\t%d %d %03.2f%% %s",
 				t.CurrentSetting.Holding,
 				t.CurrentSetting.N,
 				t.CurrentSetting.Enter,
@@ -226,11 +240,12 @@ func (t *TurtleSystem) simulateProgress() {
 				t.CurrentProfitPercent*100,
 				t.Caculated,
 				t.TotalAmount,
-				float32(t.Caculated)/float32(t.TotalAmount)*100)
+				float32(t.Caculated)/float32(t.TotalAmount)*100,
+				remain.String())
 		}
 
 		if t.BestSetting != nil {
-			log.Printf("[Best]\tHolding:%d N:%d Enter:%d Exit:%d Stop:%d Profit:%.3f ProfitPercent:%.3f",
+			log.Printf("[Best]\tHolding:%d N:%d Enter:%d Exit:%d Stop:%d Profit:%.3f ProfitPercent:%.3f%%",
 				t.BestSetting.Holding,
 				t.BestSetting.N,
 				t.BestSetting.Enter,
@@ -259,7 +274,7 @@ func (t *TurtleSystem) SimulateResultProcess() {
 			t.BestProfit = t.CurrentProfit
 			t.BestProfitPercent = t.CurrentProfitPercent
 
-			log.Printf("[Best]\tHolding:%d N:%d Enter:%d Exit:%d Stop:%d Profit:%.3f ProfitPercent:%.3f",
+			log.Printf("[Best]\tHolding:%d N:%d Enter:%d Exit:%d Stop:%d Profit:%.3f ProfitPercent:%.3f%%",
 				t.BestSetting.Holding,
 				t.BestSetting.N,
 				t.BestSetting.Enter,
