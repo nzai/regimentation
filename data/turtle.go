@@ -6,12 +6,8 @@ import (
 )
 
 type TurtleIndex struct {
-	Market string    //	市场
-	Code   string    //	上市公司
-	Peroid int       //	区间
-	Time   time.Time //	时间(区间后的下一分钟)
-	N      float32   //	波动性均值
-	TR     float32   //	真实波动性
+	N  float32 //	波动性均值
+	TR float32 //	真实波动性
 }
 
 type TurtleIndexes struct {
@@ -19,7 +15,7 @@ type TurtleIndexes struct {
 }
 
 //	初始化
-func (t *TurtleIndexes) Init(histories []MinuteHistory, peroids ...int) error {
+func (t *TurtleIndexes) Init(histories []PeroidHistory, peroids ...int) error {
 	if t.indexes == nil {
 		t.indexes = make(map[int]map[time.Time]TurtleIndex)
 	}
@@ -37,7 +33,7 @@ func (t *TurtleIndexes) Init(histories []MinuteHistory, peroids ...int) error {
 }
 
 //	计算
-func (t *TurtleIndexes) calculate(histories []MinuteHistory, peroid int) (map[time.Time]TurtleIndex, error) {
+func (t *TurtleIndexes) calculate(histories []PeroidHistory, peroid int) (map[time.Time]TurtleIndex, error) {
 
 	if peroid < 2 {
 		return nil, fmt.Errorf("peroid必须大于等于2")
@@ -70,13 +66,7 @@ func (t *TurtleIndexes) calculate(histories []MinuteHistory, peroid int) (map[ti
 			n = (float32(peroid-1)*yesterdayN + tr) / float32(peroid)
 		}
 
-		dict[history.Time] = TurtleIndex{
-			Market: history.Market,
-			Code:   history.Code,
-			Peroid: peroid,
-			Time:   history.Time,
-			N:      n,
-			TR:     tr}
+		dict[history.Time] = TurtleIndex{N: n, TR: tr}
 
 		yesterdayN = n
 	}

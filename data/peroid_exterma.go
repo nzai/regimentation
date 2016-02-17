@@ -6,19 +6,15 @@ import (
 )
 
 type PeroidExtermaIndex struct {
-	Market string    //	市场
-	Code   string    //	上市公司
-	Time   time.Time //	时间(区间后的下一分钟)
-	Peroid int       //	区间
-	Min    float32   //	波动性均值
-	Max    float32   //	真实波动性
+	High float32 //	最大值
+	Low  float32 //	最小值
 }
 
 type PeroidExtermaIndexes struct {
 	indexes map[int]map[time.Time]PeroidExtermaIndex //	字典
 }
 
-func (t *PeroidExtermaIndexes) Init(histories []MinuteHistory, peroids ...int) error {
+func (t *PeroidExtermaIndexes) Init(histories []PeroidHistory, peroids ...int) error {
 	if t.indexes == nil {
 		t.indexes = make(map[int]map[time.Time]PeroidExtermaIndex)
 	}
@@ -36,7 +32,7 @@ func (t *PeroidExtermaIndexes) Init(histories []MinuteHistory, peroids ...int) e
 }
 
 //	计算
-func (t *PeroidExtermaIndexes) calculate(histories []MinuteHistory, peroid int) (map[time.Time]PeroidExtermaIndex, error) {
+func (t *PeroidExtermaIndexes) calculate(histories []PeroidHistory, peroid int) (map[time.Time]PeroidExtermaIndex, error) {
 
 	if peroid < 2 {
 		return nil, fmt.Errorf("peroid必须大于等于2")
@@ -50,26 +46,20 @@ func (t *PeroidExtermaIndexes) calculate(histories []MinuteHistory, peroid int) 
 			start = index - peroid
 		}
 
-		min := histories[start].Low
-		max := histories[start].High
+		high := histories[start].High
+		low := histories[start].Low
 
 		for hi := start + 1; hi < index; hi++ {
-			if histories[hi].High > max {
-				max = histories[hi].High
+			if histories[hi].High > high {
+				high = histories[hi].High
 			}
 
-			if histories[hi].Low < min {
-				min = histories[hi].Low
+			if histories[hi].Low < low {
+				low = histories[hi].Low
 			}
 		}
 
-		dict[history.Time] = PeroidExtermaIndex{
-			Market: history.Market,
-			Code:   history.Code,
-			Time:   history.Time,
-			Peroid: peroid,
-			Min:    min,
-			Max:    max}
+		dict[history.Time] = PeroidExtermaIndex{High: high, Low: low}
 	}
 
 	return dict, nil

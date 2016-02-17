@@ -26,19 +26,6 @@ type MinuteHistory struct {
 	Volume int64
 }
 
-//	公司列表
-type MinuteHistories []MinuteHistory
-
-func (l MinuteHistories) Len() int {
-	return len(l)
-}
-func (l MinuteHistories) Swap(i, j int) {
-	l[i], l[j] = l[j], l[i]
-}
-func (l MinuteHistories) Less(i, j int) bool {
-	return l[i].Time.Before(l[j].Time)
-}
-
 //	查询分时数据
 func QueryMinuteHistories(market, code string, start, end time.Time) ([]MinuteHistory, error) {
 
@@ -109,14 +96,64 @@ func QueryMinuteHistories(market, code string, start, end time.Time) ([]MinuteHi
 	return histories, nil
 }
 
-//	每日历史
+//	区间历史
 type PeroidHistory struct {
-	Market string
-	Code   string
-	Time   time.Time
-	Open   float32
-	Close  float32
-	High   float32
-	Low    float32
-	Volume int64
+	Time    time.Time
+	Open    float32
+	Close   float32
+	High    float32
+	Low     float32
+	Volume  int64
+	Minutes []MinuteHistory
+}
+
+//	转化区间历史
+func ParsePeroidHistory(histories []MinuteHistory, peroid int) ([]PeroidHistory, error) {
+	if len(histories) == 0 {
+		return []PeroidHistory{}, nil
+	}
+
+	var ph *PeroidHistory = nil
+	end := histories[0].Time.Add(-time.Minute)
+
+	phs := make([]PeroidHistory, 0)
+	for _, history := range histories {
+
+		if history.Time.After(end) {
+			if ph != nil {
+				phs = append(phs, *ph)
+			}
+
+			end = history.Time.Add(time.Minute * time.Duration(peroid))
+
+			ph = &PeroidHistory{
+				Time:    history.Time,
+				Open:    history.Open,
+				Close:   history.Close,
+				High:    history.High,
+				Low:     history.Low,
+				Volume:  history.Volume,
+				Minutes: make([]MinuteHistory, 0)}
+
+			continue
+		}
+
+		if history.High > ph.High {
+			ph.High = history.High
+		}
+
+		if history.Low < ph.Low {
+			ph.Low = history.Low
+		}
+
+		ph.Close = history.Close
+		ph.Volume += history.Volume
+		ph.Minutes = append(ph.Minutes, history)
+	}
+
+	if ph != nil {
+		phs = append(phs, *ph)
+	}
+
+	return phs, nil
 }
