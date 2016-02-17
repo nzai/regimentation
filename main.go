@@ -40,9 +40,9 @@ func main() {
 		StartTime:   start,
 		StartAmount: 100000,
 		EndTime:     end,
-		MinSetting:  trading.TurtleSetting{Holding: 1, N: 60, Enter: 60, Exit: 60, Stop: 60},
-		MaxSetting:  trading.TurtleSetting{Holding: 8, N: 6000, Enter: 6000, Exit: 6000, Stop: 6000},
-		Step:        60}
+		Peroid:      240,
+		MinSetting:  trading.TurtleSetting{Holding: 1, N: 2, Enter: 2, Exit: 2, Stop: 2},
+		MaxSetting:  trading.TurtleSetting{Holding: 8, N: 50, Enter: 50, Exit: 50, Stop: 50}}
 
 	//	初始化
 	err = system.Init()
